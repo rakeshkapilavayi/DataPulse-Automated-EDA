@@ -11,7 +11,7 @@ Hello! I'm **Rakesh Kapilavayi**, and I created **DataPulse** to help you explor
 Whether you're new to data or an expert, this app makes data analysis fun and easy!
 
 ## 🌐 Live Demo
-Try it out here: **[Click Here](https://rakesh-project-insurance-premium-predictor.streamlit.app)**  
+Try it out here: **[Click Here](https://rakesh-project-datapulse-automated-eda.streamlit.app/)**  
 
 ---
 
@@ -185,4 +185,5 @@ Health_Insurance_Cost_Predictor/
 ---
 
 Let me know if you want a version with badges (for license, Python version, etc.), or if you'd like help with GitHub Pages or documentation layout.
+
 
