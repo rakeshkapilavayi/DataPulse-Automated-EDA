@@ -5,6 +5,7 @@ from pathlib import Path
 import plotly.express as px
 from functions import get_summary, manual_cleaning, auto_clean, perform_eda, generate_insights, get_download_link
 from machinelearning import train_model
+from llm_insights import enhance_insights_with_llm, generate_quick_summary
 
 # Set page configuration as the first Streamlit command
 st.set_page_config(page_title="DataPulse: Automated EDA", layout="wide", initial_sidebar_state="expanded")
@@ -105,6 +106,22 @@ st.markdown("""
     .stSpinner > div {
         border-color: #007bff !important;
     }
+    /* Enhanced Insights styling */
+    .ai-insights-box {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+        border-radius: 10px;
+        color: white;
+        margin: 10px 0;
+    }
+    .insight-content {
+        background-color: white;
+        color: #1a3c6d;
+        padding: 20px;
+        border-radius: 8px;
+        margin-top: 10px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -128,7 +145,7 @@ This app allows users to:
 - Conduct interactive EDA with Plotly visualizations  
 - Detect outliers  
 - Train machine learning models (classification/regression)  
-- Generate automated insights and recommendations  
+- **🤖 Generate enhanced insights with advanced analysis**  
 - Export cleaned datasets  
 """, unsafe_allow_html=True)
 
@@ -154,6 +171,8 @@ with st.container():
             st.session_state['features'] = None
             st.session_state['task_type'] = None
             st.session_state['label_encoder'] = None
+            st.session_state['cleaning_report'] = None
+            st.session_state['ml_report'] = None
             st.session_state['last_uploaded_file'] = uploaded_file.name
             logger.info(f"New dataset uploaded: {uploaded_file.name}. Session state reset.")
         
@@ -177,7 +196,7 @@ with st.container():
                 # Create tabs for functionalities
                 tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
                     "Summary", "Manual Cleaning", "Auto Cleaning", "EDA", "Outliers", 
-                    "Machine Learning", "Insights"
+                    "Machine Learning", "📊 Insights"
                 ])
 
                 # Tab 1: Summary
@@ -248,6 +267,7 @@ with st.container():
                         try:
                             with st.spinner("Performing auto cleaning..."):
                                 st.session_state['cleaned_df'], report = auto_clean(st.session_state['cleaned_df'])
+                                st.session_state['cleaning_report'] = report  # Store for AI insights
                                 st.success("Auto cleaning completed!")
                                 st.markdown(f"**New Shape**: {st.session_state['cleaned_df'].shape[0]} rows, {st.session_state['cleaned_df'].shape[1]} columns")
                                 st.markdown("#### Cleaning Report")
@@ -387,6 +407,7 @@ with st.container():
                                             st.session_state['features'] = features
                                             st.session_state['task_type'] = st.session_state['task_type']
                                             st.session_state['label_encoder'] = label_encoder
+                                            st.session_state['ml_report'] = report  # Store for AI insights
                                             st.success("Model trained successfully!")
                                             
                                             st.markdown("#### Model Evaluation")
@@ -415,28 +436,91 @@ with st.container():
                         st.error(f"Machine learning error: {e}")
                         logger.error(f"Machine learning error: {e}")
 
-                # Tab 7: Insights
+                # Tab 7: Enhanced Insights
                 with tab7:
-                    st.markdown("### Data Insights & Recommendations")
-                    try:
-                        insights, recommendations = generate_insights(st.session_state['cleaned_df'])
-                        st.markdown("#### Key Insights")
-                        if insights:
-                            for insight in insights:
-                                st.markdown(f"- {insight}")
-                        else:
-                            st.info("No significant insights generated.")
+                    st.markdown("### 📊 Data Insights & Analysis")
+                    
+                    col1, col2 = st.columns([1, 1])
+                    
+                    with col1:
+                        if st.button("🚀 Generate Enhanced Insights", key="generate_enhanced_insights", use_container_width=True):
+                            with st.spinner("🔮 Analyzing your dataset..."):
+                                try:
+                                    # Get traditional insights first
+                                    insights, recommendations = generate_insights(st.session_state['cleaned_df'])
+                                    summary = get_summary(st.session_state['cleaned_df'])
+                                    
+                                    cleaning_report = st.session_state.get('cleaning_report', None)
+                                    ml_report = st.session_state.get('ml_report', None)
+                                    
+                                    # Enhance with LLM
+                                    enhanced_insights = enhance_insights_with_llm(
+                                        insights,
+                                        recommendations,
+                                        summary,
+                                        cleaning_report,
+                                        ml_report
+                                    )
+                                    
+                                    st.session_state['enhanced_insights'] = enhanced_insights
+                                    st.success("✅ Enhanced insights generated successfully!")
+                                    logger.info("Enhanced insights generated successfully")
+                                except Exception as e:
+                                    st.error(f"❌ Error generating enhanced insights: {e}")
+                                    logger.error(f"Enhanced insights error: {e}")
+                    
+                    with col2:
+                        if st.button("⚡ Generate Quick Summary", key="generate_quick_summary", use_container_width=True):
+                            with st.spinner("⚡ Generating quick summary..."):
+                                try:
+                                    insights, recommendations = generate_insights(st.session_state['cleaned_df'])
+                                    summary = get_summary(st.session_state['cleaned_df'])
+                                    
+                                    quick_summary = generate_quick_summary(summary, insights, recommendations)
+                                    st.session_state['enhanced_insights'] = quick_summary
+                                    st.success("✅ Quick summary generated!")
+                                    logger.info("Quick summary generated successfully")
+                                except Exception as e:
+                                    st.error(f"❌ Error generating quick summary: {e}")
+                                    logger.error(f"Quick summary error: {e}")
+                    
+                    # Display enhanced insights if available
+                    if 'enhanced_insights' in st.session_state and st.session_state['enhanced_insights']:
+                        st.markdown('<div class="insight-content">', unsafe_allow_html=True)
+                        st.markdown(st.session_state['enhanced_insights'])
+                        st.markdown('</div>', unsafe_allow_html=True)
                         
-                        st.markdown("#### Recommendations")
-                        if recommendations:
-                            for recommendation in recommendations:
-                                st.markdown(f"- {recommendation}")
-                        else:
-                            st.info("No recommendations generated.")
-                        logger.info("Insights and recommendations displayed successfully")
-                    except Exception as e:
-                        st.error(f"Error generating insights: {e}")
-                        logger.error(f"Insights error: {e}")
+                        # Download insights as text file
+                        st.download_button(
+                            label="📥 Download Insights Report",
+                            data=st.session_state['enhanced_insights'],
+                            file_name=f"insights_report_{uploaded_file.name.split('.')[0]}.txt",
+                            mime="text/plain"
+                        )
+                    else:
+                        st.info("👆 Click 'Generate Enhanced Insights' for comprehensive analysis or 'Generate Quick Summary' for a fast overview!")
+                    
+                    # Show raw statistical insights as reference
+                    with st.expander("📊 View Raw Statistical Data", expanded=False):
+                        try:
+                            insights, recommendations = generate_insights(st.session_state['cleaned_df'])
+                            st.markdown("#### Statistical Observations")
+                            if insights:
+                                for insight in insights:
+                                    st.markdown(f"- {insight}")
+                            else:
+                                st.info("No significant statistical observations.")
+                            
+                            st.markdown("#### Technical Recommendations")
+                            if recommendations:
+                                for recommendation in recommendations:
+                                    st.markdown(f"- {recommendation}")
+                            else:
+                                st.info("No technical recommendations.")
+                            logger.info("Raw statistical data displayed successfully")
+                        except Exception as e:
+                            st.error(f"Error generating statistical data: {e}")
+                            logger.error(f"Statistical data error: {e}")
 
                 # Download Cleaned Dataset
                 st.markdown("### Export Cleaned Dataset")
@@ -461,5 +545,7 @@ with st.container():
             st.session_state['features'] = None
             st.session_state['task_type'] = None
             st.session_state['label_encoder'] = None
+            st.session_state['cleaning_report'] = None
+            st.session_state['ml_report'] = None
             logger.info("Session state cleared due to no file uploaded.")
         st.info("Please upload a CSV or Excel file to start analyzing.")
